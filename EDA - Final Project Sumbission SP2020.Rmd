@@ -1,0 +1,341 @@
+---
+title: "EDA- Final Proect Submission"
+author: "Uma Maheswari Gollapudi"
+date: "May 1, 2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Our main agenda is to understand how Suicide Rates have varied across the years with respect to different factors such as gender, GDP, age and location.
+
+```{r, message = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(broom)
+library(dplyr)
+library(rio)
+library(countrycode)
+library(maps)
+library(gridExtra)
+library(ggthemes)
+library(socviz)
+library(mapproj)
+library(rworldmap)
+cb_palette = c("#999999", "#E69F00", "#56B4E9", "#009E73","#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+library(mgcv)
+library(gridExtra)
+library(grid)
+
+```
+
+
+```{r}
+data = read.csv("C:\\Users\\umamg\\OneDrive\\Desktop\\master.csv")
+names(data)[names(data)=="ï..country"] = "Country"
+data = filter(data, year!=2016)
+data = subset(data, select = -c(generation,HDI.for.year) )
+data = na.omit(data)
+#View(data)
+```
+
+
+```{r}
+grouped <- group_by(data, year)
+year <- summarise(grouped, sr = sum(suicides_no),pop = sum(population))
+year$suicide_100k <- (year$sr/year$pop)*100000
+
+ggplot(year, aes(x=year, y=suicide_100k)) + geom_line(linetype="solid", color="blue", size=1) +geom_point() + xlab("Year") + ylab("Suicides per 100K people") + ggtitle("Global Suicide Rates over the Years : Time Series Plot") + scale_x_continuous(breaks=seq(1985, 2015, 3))
+
+mean(year$suicide_100k)
+```
+
+Question 1: How has the suicide rate across the world varied with gender and age?
+
+We compare the suicide rates across all the years, for both the genders.
+```{r }
+grouped <- group_by(data, sex, year)
+year_sex <- summarise(grouped, sr = sum(suicides_no),pop = sum(population))
+year_sex$suicide_100k <- (year_sex$sr/year_sex$pop)*100000
+
+ggplot(year_sex, aes(x=year, y=suicide_100k, color=sex)) + geom_line(size=1) +geom_point()+ xlab("Year") + ylab("Suicides per 100K people") + ggtitle("Suicide Rates across Genders over the Years:Time Series Plot") +theme_bw() +scale_x_continuous(breaks=seq(1985, 2016, 2)) 
+```
+
+```{r}
+grouped <- group_by(data,sex) 
+gender_plot <- summarise(grouped, suicide_per_100k = (sum(as.numeric(suicides_no)) / sum(as.numeric(population))) * 100000) 
+ggplot(gender_plot, aes(x = sex, y = suicide_per_100k, fill = sex)) + geom_bar(stat = "identity", fill= c('pink','lightblue')) + labs(title = "Global suicides by Gender for every 100k people", x = "Sex", y = "Suicides Rate") +theme_bw() + scale_y_continuous(breaks=seq(0, 25, 5))
+```
+
+
+```{r}
+grouped <- group_by(data,sex) 
+gender_plot <- summarise(grouped, total_suicides = (sum(as.numeric(suicides_no))))
+ggplot(gender_plot, aes(x = sex, y = total_suicides, fill = sex)) + geom_bar(stat = "identity", fill= c('pink','lightblue')) + labs(title = "Global suicides by Gender : Overall - Categorical Evaluation", x = "Sex", y = "Total Suicides") +theme_bw() 
+```
+
+Order of Generations:
+
+The Greatest Generation : (1910-1924)
+The Silent Generation : (1925-1945)
+Baby Boomer Generation : (1946-1964)
+Generation X : (1965-1979)
+Millennials : (1980-1994)
+Gen Z: (1995-2012)
+
+```{r fig.height=10, fig.width=10}
+grouped <- group_by(data, year, age)
+age_generation <- summarise(grouped, sr = sum(suicides_no),pop = sum(population))
+age_generation$suicide_100k <- (age_generation$sr/age_generation$pop)*100000
+age_generation$Age_Range = factor(age_generation$age, levels=c('5-14 years','15-24 years','25-34 years','35-54 years', '55-74 years', '75+ years'))
+
+ggplot(age_generation, aes(x=year, y=suicide_100k, color=Age_Range)) + geom_line(linetype="solid",size=1) + geom_point() +
+    facet_wrap(.~Age_Range, ncol=2)+ xlab("Year") + ylab("Suicides per 100K people") + ggtitle("Suicide Rates across various age groups over the Years") + scale_x_continuous(breaks=seq(1985, 2015, 3)) +theme_bw()
+```
+
+```{r fig.height=10, fig.width=10}
+grouped <- group_by(data, year, age, sex)
+agegender_generation <- summarise(grouped, sr = sum(suicides_no),pop = sum(population))
+agegender_generation$suicide_100k <- (agegender_generation$sr/agegender_generation$pop)*100000
+
+agegender_generation$age_order = factor(agegender_generation$age, levels=c('5-14 years','15-24 years','25-34 years','35-54 years', '55-74 years', '75+ years'))
+agegender_generation$Gender = factor(agegender_generation$sex, levels=c('male','female'))
+ggplot(agegender_generation, aes(x=year, y=suicide_100k, color=Gender)) + geom_line(linetype="solid",size=1) + 
+    facet_wrap(.~age_order, ncol=2)+ xlab("Year") + ylab("Suicides per 100K people") + ggtitle("Suicide Rates across various age groups by gender over the Years") + scale_x_continuous(breaks=seq(1985, 2015, 3)) +theme_bw()
+```
+
+
+Question 2: How had the suicide rate varied across continents over the years?
+
+
+We used the inbuilt CountryCode Library to group the data continent wise.
+Here, Oceania is a geographic region that includes Australasia, Melanesia, Micronesia and Polynesia.
+
+```{r}
+data$continent <- countrycode(sourcevar = data[,1], origin = "country.name",destination = "continent")
+```
+
+```{r fig.height=10, fig.width=10}
+country_year <- group_by(data, continent, year)
+country_year <- summarise(country_year,  sr = sum(suicides_no),pop = sum(population))
+country_year$suicide_100k <- (country_year$sr/country_year$pop)*100000
+
+country_year$Continent = factor(country_year$continent, levels=c('Americas','Asia','Europe','Oceania','Africa'))
+
+ggplot(country_year, aes(x=year, y=suicide_100k, color=Continent)) + geom_point(size=1) + facet_wrap(.~Continent, ncol=2)+
+    xlab("Year") + ylab("Suicide Per 100K people") + ggtitle("Suicide Per 100K across Continents over the Years") +geom_smooth(method='loess') +geom_abline()
+
+```
+
+As we can see, the data is missing values for countries such as India, Russia and most of north eastern Africa.
+
+```{r}
+data$Country_new <- data[,1]
+grouped <- group_by(data, Country_new) 
+global_map <- summarise(grouped, suicide_per_100k = (sum(as.integer(suicides_no)) / sum(as.integer(population)))*100000)
+#View(country)
+all_map <- joinCountryData2Map(global_map, joinCode = "NAME", nameJoinColumn = "Country_new")
+#View(all_map)
+mapCountryData(all_map, nameColumnToPlot="suicide_per_100k", mapRegion = "world", mapTitle="Heat Map of Suicide Rates across the World", colourPalette = "heat", oceanCol="skyblue1", catMethod = "diverging", missingCountryCol="seashell4")
+```
+
+```{r}
+top_country <- group_by(data, Country)
+#sapply(top_country,typeof)
+top_country <- summarise(top_country,  suicide_sum = sum(suicides_no))
+#View(top_country)
+#sapply(top_country,typeof)
+top_country$continent <- countrycode(sourcevar = top_country$Country, origin = "country.name",destination = "continent")
+#View(top_country)
+#sapply(top_country,typeof)
+```
+
+```{r}
+highest_suicide_country <- group_by(top_country, continent)
+highest_suicide_country <- summarize(highest_suicide_country,top_sr = max(suicide_sum))
+highest_suicide_country$suicide_sum <- highest_suicide_country$top_sr
+highest_suicide_countries_per_continent = left_join(highest_suicide_country,top_country, by = "suicide_sum")
+high = subset(highest_suicide_countries_per_continent, select =  c("continent.x","suicide_sum","Country"))
+high$Continent = high$continent.x
+high$Total_Suicides = high$suicide_sum
+high = subset(high, select =  c("Continent","Total_Suicides","Country"))
+high
+#ggplot(country_year, aes(x=year, y=suicide_100k, color=continent)) + geom_point(size=1) + facet_wrap(.~continent, ncol=2)+
+#    xlab("Year") + ylab("Suicide Rate") + ggtitle("Suicide Per 100K across Continents over the Years") +geom_smooth(method='loess')
+
+```
+Only Oceania and Europe have the correct output - the others all have very less data.
+
+
+```{r fig.height=10, fig.width=10}
+highest <- data[data$Country == highest_suicide_countries_per_continent$Country,]
+grouped <- group_by(highest,Country, year)
+highest_sr_contr <- summarize(grouped, suicide_per_100k = (sum(as.integer(suicides_no)) / sum(as.integer(population)))*100000)
+highest_sr_contr = filter(highest_sr_contr, Country!="South Africa")
+
+ggplot(highest_sr_contr, aes(x=year, y=suicide_per_100k, group=factor(Country), color=Country)) +
+  geom_point(size=2)+
+  geom_line() +theme_bw() +xlab("Year") + ylab("Suicide per 100K") + ggtitle("Suicide Per 100K across top countries:  Time Series Plot") + scale_x_continuous(breaks=seq(1985, 2015, 3))
+```
+
+3. Suicide Rate vs GDP per Capita
+
+
+```{r}
+grouped <- group_by(data, year)
+gdp_sr <- summarise(grouped, sr = sum(suicides_no),pop = sum(population), gdp = mean(as.integer(gdp_per_capita....)))
+gdp_sr$suicide_100k <- (gdp_sr$sr/gdp_sr$pop)*100000
+
+ggplot(gdp_sr, aes(x=log(gdp) , y=suicide_100k))+ 
+  geom_point(color='blue') +geom_smooth() + xlab("GDP per capita ($)") + 
+  ylab("Suicides per 100K") + 
+  ggtitle("The relationship between suicide rate and GDP per capita ")+theme_bw()
+
+
+r1 <- ggplot(gdp_sr, aes(y=gdp, x=year))+
+        geom_point() +
+        geom_line()+
+        geom_smooth() + xlab("Year") +   ylab("GDP per capita ($)") +theme_bw()
+
+r2 <- ggplot(gdp_sr, aes(y=suicide_100k, x=year))+
+        geom_point()+
+        geom_line()+scale_x_continuous(breaks=)+
+        geom_smooth() + xlab("Year") + 
+ ylab("Suicides per 100K")+theme_bw()
+
+grid.arrange(r1, r2, ncol=2,top = textGrob("A side-by-side analysis of the relationship between suicide rate and GDP per capita ",gp=gpar(fontsize=12,font=3)))
+```
+
+```{r}
+ggplot(gdp_sr, aes(x=gdp)) + geom_density()
+```
+
+
+```{r}
+data$continent <- countrycode(sourcevar = data[,1], origin = "country.name",destination = "continent")
+```
+
+```{r}
+grouped <- group_by(data, Country, continent)
+gdp_mean <- summarize(grouped, suicide=(sum(suicides_no)/sum(population)) * 100000,mean_gdp=mean(gdp_per_capita....))
+gdp_mean <- filter(gdp_mean, continent!="Africa")
+ggplot(gdp_mean, aes(x=log(mean_gdp), y=suicide, color=continent))+
+  geom_point()+geom_smooth(method = lm, aes(group=1), se=FALSE, color='black')+ facet_wrap(.~continent, ncol=2) + 
+  ggtitle("The relationship between suicide rate and GDP per capita by continents") + theme_bw() +ylab("Suicides per 100K") +xlab("Mean GDP per capita (log value)")
+
+```
+
+```{r fig.height=8, fig.width=8}
+r1 <- ggplot(gdp_sr, aes(y=log(gdp), x=year))+
+        geom_line() +
+        scale_x_continuous(breaks = seq(1990,2016,3))+ geom_vline(xintercept = 2009, linetype="solid", 
+                color = "blue", size=1) + geom_vline(xintercept = 1991, linetype="solid", 
+                color = "blue", size=1)+ xlab("Year") + 
+ ylab("GDP per capita ($) - log transformed")+theme_bw()
+
+r2 <- ggplot(gdp_sr, aes(y=log(suicide_100k), x=year))+
+        geom_line() +
+        scale_x_continuous(breaks = seq(1990,2016,3)) + geom_vline(xintercept = 2009, linetype="solid", 
+                color = "blue", size=1) + geom_vline(xintercept = 1991, linetype="solid", 
+                color = "blue", size=1) + xlab("Year") + 
+ ylab("Suicides per 100K")+theme_bw()
+
+
+grid.arrange(r1, r2, ncol=1,top = textGrob("A comparision of suicide rate and GDP per capita during recession periods (1991, 2009) ",gp=gpar(fontsize=12,font=3)))
+```
+
+
+Model fitting:
+
+```{r}
+model1 <- lm(suicide_100k ~ gdp, data=gdp_sr)
+summary(model1)
+
+```
+
+```{r}
+cor(gdp_sr$suicide_100k,gdp_sr$gdp)
+```
+
+```{r}
+grouped <- group_by(data, year)
+gdp_sr <- summarise(grouped, sr = sum(suicides_no),pop = sum(population), gdp = mean(as.integer(gdp_per_capita....)))
+gdp_sr$suicide_100k <- (gdp_sr$sr/gdp_sr$pop)*100000
+
+ggpairs(gdp_sr)
+```
+
+```{r}
+grouped <- group_by(data, year)
+data_corrected<- summarise(grouped, sr = sum(suicides_no),pop = sum(population), gdp = mean(as.integer(gdp_per_capita....)))
+data_corrected$suicide_100k <- (gdp_sr$sr/gdp_sr$pop)*100000
+#View(data_corrected)
+```
+
+
+```{r}
+model.rlm = lm(suicide_100k ~ gdp, data = data_corrected)
+model.rlm.aug = augment(model.rlm)
+summary(model.rlm)
+```
+
+```{r}
+data_whole = subset(data, select = -c(country.year, Country_new) )
+```
+
+```{r}
+data_whole$age_cat <- 0
+data_whole[data_whole$age == '5-14 years',]$age_cat = 1
+data_whole[data_whole$age == '15-24 years',]$age_cat = 2
+data_whole[data_whole$age == '25-34 years',]$age_cat = 3
+data_whole[data_whole$age == '35-54 years',]$age_cat = 4
+data_whole[data_whole$age == '55-74 years',]$age_cat = 5
+data_whole[data_whole$age == '75+ years',]$age_cat = 6
+
+
+data_whole$gender_cat <- 0
+data_whole[data_whole$sex == 'female',]$gender_cat = 1
+data_whole[data_whole$sex == 'male',]$gender_cat = 2
+```
+
+```{r}
+cor(data_whole$age_cat, data_whole$suicides_no)
+```
+
+```{r}
+cor(data_whole$gender_cat, data_whole$suicides_no)
+```
+
+```{r}
+model2.lm = lm(suicides_no ~ gdp_per_capita.... , data = data_whole)
+model2.lm.aug = augment(model2.lm)
+summary(model2.lm)
+```
+
+
+```{r}
+model2.lm = lm(suicides_no ~ gdp_per_capita.... +age, data = data_whole)
+model2.lm.aug = augment(model2.lm)
+summary(model2.lm)
+```
+
+```{r}
+model2.lm = lm(suicides_no ~ gdp_per_capita.... + age + sex, data = data_whole)
+model2.lm.aug = augment(model2.lm)
+summary(model2.lm)
+```
+```{r}
+model2.lm = lm(suicides_no ~ gdp_per_capita.... + age + sex + Country, data = data_whole)
+model2.lm.aug = augment(model2.lm)
+summary(model2.lm)
+```
+
+
+
+
