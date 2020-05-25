@@ -1,4 +1,4 @@
-Project Description
+## Project Description
 
 The World Health Organization reports that close to 800,000 people die by committing sui-cide every year, which is almost 1 person every 40 seconds. This is very disturbing as it is a preventable health problem, but still a leading cause of death worldwide.
 
@@ -7,8 +7,7 @@ Reports from the American Psychological Association show us that the USA alone h
 Our dataset includes the global rates of suicides per country, and includes characteristics such as age, gender, Gross Domestic Product and Human Development Index respectively, and would be helpful in understanding the variation in suicide rates across di erent countries. Suicide rates around the world have been increasing every year, and we want to analyze the relationship between these factors to better understand the reasons and common factors that contribute to this.
 
 
-
-Dataset Description
+## Dataset Description
 
 The dataset we are using is the Suicide Rates Overview-1985 to 2016 dataset from Kaggle, and will be used to derive correlations between different attributes to understand the variation in suicide rates among different countries globally. Our data contains a total of 12 columns and 27,821 observations.
 
@@ -30,10 +29,9 @@ The dataset we are using is the Suicide Rates Overview-1985 to 2016 dataset from
 
 •	Generation - splits the population based on the generation they were born in - G.I Generation, Silent Generation, Boomers, Generation X, Millenials, Generation Z
 
-
 Out of these variables Year, Suicides no, Population, Suicides/100k pop, HDI for a year, Gdp for year and Gdp per capita are quantitative variables, while Sex and Generation are categorical variables.
  
-Research Question
+## Research Question
 
 We want to understand the following:
 
@@ -41,7 +39,7 @@ How does the suicide rate vary per country after accounting for the GDP, Human D
 
 Considering Suicides/100k pop as the response variable, we would like to perform an exploratory analysis of the relationship it shares with age and across generations, gender, the per capita GDP and the HDI of a population, across countries. We will work on plotting this information to see how suicide rates vary with increase/decrease in GDP and HDI, and with categorical variables like Sex, Country, Age etc. Examples of specific questions we can look into are whether rich countries have a lower suicide rate or which gender has a higher rate of suicide and so on.
 
-Links and References
+## Links and References
 
 Suicide Rates Overview-1985 to 2016 dataset: https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016
 
